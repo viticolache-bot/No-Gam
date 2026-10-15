@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Drenaje Pluvial - Santa Marta</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-blue: #0056b3;
+            --light-blue: #e6f2ff;
+            --water-blue: #3399ff;
+            --dark-gray: #333333;
+            --light-gray: #f4f7f6;
+            --white: #ffffff;
+            --border-color: #dddddd;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--light-gray);
+            color: var(--dark-gray);
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background-color: var(--primary-blue);
+            color: var(--white);
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        header h1 {
+            margin: 0 0 10px 0;
+            font-size: 24px;
+        }
+
+        header p {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 300;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 2.5fr;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .panel {
+            background-color: var(--white);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border: 1px solid var(--border-color);
+        }
+
+        h2 {
+            font-size: 18px;
+            color: var(--primary-blue);
+            border-bottom: 2px solid var(--light-blue);
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .value-display {
+            display: inline-block;
+            background-color: var(--light-blue);
+            color: var(--primary-blue);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 14px;
+            float: right;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .metric-card {
+            background-color: var(--light-blue);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #cce5ff;
+        }
+
+        .metric-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 12px;
+            color: var(--dark-gray);
+            text-transform: uppercase;
+        }
+
+        .metric-card .value {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--primary-blue);
+        }
+
+        .visual-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+
+        .schema-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--light-gray);
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px dashed #aaaaaa;
+        }
+
+        /* Representación visual dinámica del canal */
+        .canal-wrapper {
+            position: relative;
+            width: 250px;
+            height: 200px;
+            border: 3px solid #666;
+            border-top: none; /* Canal abierto */
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            background-color: #fff;
+        }
+
+        .agua-dinamica {
+            background-color: var(--water-blue);
+            opacity: 0.8;
+            transition: all 0.3s ease;
+        }
+
+        .dimension-label {
+            position: absolute;
+            font-size: 12px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .label-b { bottom: -20px; }
+        .label-y { left: -45px; top: 50%; transform: translateY(-50%); }
+
+        @media (max-width: 900px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            .metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .visual-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Simulador de Drenaje Pluvial - Santa Marta</h1>
+        <p>Optimización Geométrica e Hidráulica de Canales Rectangulares para Mitigación de Inundaciones</p>
+    </header>
+
+    <div class="container">
+        <!-- PANEL IZQUIERDO: CONTROLES -->
+        <div class="panel">
+            <h2>Parámetros de Diseño</h2>
+            
+            <div class="control-group">
+                <label>Perímetro Mojado (P) [m] <span class="value-display" id="val-perimetro">10.00</span></label>
+                <input type="range" id="slider-perimetro" min="2.00" max="20.00" step="0.10" value="10.00">
+            </div>
+
+            <div class="control-group">
+                <label>Longitud del Tramo [m] <span class="value-display" id="val-longitud">250.00</span></label>
+                <input type="range" id="slider-longitud" min="10" max="500" step="10" value="250">
+            </div>
+
+            <div class="control-group">
+                <label>Pendiente (S) [m/m] <span class="value-display" id="val-pendiente">0.0015</span></label>
+                <input type="range" id="slider-pendiente" min="0.0010" max="0.0500" step="0.0001" value="0.0015">
+            </div>
+        </div>
+
+        <!-- PANEL DERECHO: RESULTADOS Y GRÁFICOS -->
+        <div class="panel">
+            <h2>Resultados Óptimos y Proyecciones</h2>
+            
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h3>Ancho Óptimo (b)</h3>
+                    <div class="value" id="out-b">0.00 m</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Tirante Óptimo (y)</h3>
+                    <div class="value" id="out-y">0.00 m</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Área Máxima (A)</h3>
+                    <div class="value" id="out-area">0.00 m²</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Costo Mantenimiento</h3>
+                    <div class="value" id="out-costo">$ 0.00</div>
+                </div>
+            </div>
+
+            <div class="visual-container">
+                <!-- Gráfico de la Parábola -->
+                <div class="chart-container">
+                    <canvas id="graficoParabola"></canvas>
+                </div>
+
+                <!-- Esquema visual del canal -->
+                <div class="schema-container">
+                    <h3 style="font-size: 14px; margin-top: 0; color: #666;">Sección Transversal Óptima</h3>
+                    <div class="canal-wrapper" id="canal-marco">
+                        <div class="dimension-label label-y" id="lbl-y">y=0.00m</div>
+                        <div class="agua-dinamica" id="agua-visual"></div>
+                        <div class="dimension-label label-b" id="lbl-b">b=0.00m</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Inicialización del Gráfico de Chart.js
+        const ctx = document.getElementById('graficoParabola').getContext('2d');
+        let parabolaChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Área Transversal (m²)',
+                    data: [],
+                    borderColor: '#0056b3',
+                    backgroundColor: 'rgba(0, 86, 179, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0 // Oculta los puntos para una curva más limpia
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Ancho del Canal (b) [m]' }
+                    },
+                    y: {
+                        title: { display: true, text: 'Área (A) [m²]' },
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `Área: ${context.parsed.y.toFixed(2)} m²`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Función Principal del Simulador
+        function actualizarSimulador() {
+            // A. REQUISITO: OPERACIONES CON NÚMEROS DECIMALES
+            // Capturamos los valores de los sliders y forzamos su conversión a flotantes (decimales)
+            const perimetro = parseFloat(document.getElementById('slider-perimetro').value);
+            const longitud = parseFloat(document.getElementById('slider-longitud').value);
+            const pendiente = parseFloat(document.getElementById('slider-pendiente').value);
+
+            // Actualizamos etiquetas visuales con precisión de 2 y 4 decimales
+            document.getElementById('val-perimetro').textContent = perimetro.toFixed(2);
+            document.getElementById('val-longitud').textContent = longitud.toFixed(2);
+            document.getElementById('val-pendiente').textContent = pendiente.toFixed(4);
+
+            // B. REQUISITO: ECUACIÓN CUADRÁTICA (Optimización del Canal)
+            // Se busca el ancho (b) que maximice el Área dada la restricción de Perímetro (P).
+            // Ecuación: Area = b * ((P - b) / 2). Esto es una parábola cóncava hacia abajo.
+            
+            let anchos = [];
+            let areas = [];
+            let areaMaxima = 0;
+            let bOptimo = 0;
+            let yOptimo = 0;
+
+            // Iteramos sobre posibles anchos desde 0.1 hasta el Perímetro total
+            // Se usa step de 0.1 para construir los datos de la gráfica y buscar el máximo
+            for (let b = 0.1; b < perimetro; b += 0.1) {
+                // Cálculo del tirante (y)
+                let y = (perimetro - b) / 2;
+                
+                // Función cuadrática del área
+                let areaActual = b * y;
+
+                anchos.push(b.toFixed(2));
+                areas.push(areaActual.toFixed(2));
+
+                // Búsqueda del vértice de la parábola (Área máxima)
+                if (areaActual > areaMaxima) {
+                    areaMaxima = areaActual;
+                    bOptimo = b;
+                    yOptimo = y;
+                }
+            }
+
+            // C. REQUISITO: ECUACIÓN LINEAL (Costo de Mantenimiento)
+            // Proyección de costos basada en una tasa por metro lineal más un costo base fijo.
+            // Modelo: Costo = (m * X) + b  => Costo = (25500.50 * Longitud) + 1200000.00
+            const costoVariableMantenimiento = 25500.50;
+            const costoFijoOperacion = 1200000.00;
+            const costoTotal = (longitud * costoVariableMantenimiento) + costoFijoOperacion;
+
+            // --- ACTUALIZACIÓN DE INTERFAZ Y RESULTADOS ---
+            
+            // Uso estricto de .toFixed(2) para cumplir el requisito de operaciones decimales en la salida
+            document.getElementById('out-b').textContent = `${bOptimo.toFixed(2)} m`;
+            document.getElementById('out-y').textContent = `${yOptimo.toFixed(2)} m`;
+            document.getElementById('out-area').textContent = `${areaMaxima.toFixed(2)} m²`;
+            
+            // Formateo de moneda para el costo
+            document.getElementById('out-costo').textContent = `$ ${costoTotal.toLocaleString('es-CO', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+            // Actualizar Gráfico Chart.js
+            parabolaChart.data.labels = anchos;
+            parabolaChart.data.datasets[0].data = areas;
+            parabolaChart.update();
+
+            // Actualizar Representación Visual (Esquema del Canal)
+            // Mapeamos los valores matemáticos a porcentajes visuales en el div
+            const divAgua = document.getElementById('agua-visual');
+            
+            // Calculamos proporciones relativas para el esquema (basado en el ancho óptimo vs perímetro)
+            const maxDimension = perimetro;
+            const widthVisual = (bOptimo / maxDimension) * 100; // Porcentaje de ancho
+            const heightVisual = (yOptimo / (maxDimension/2)) * 100; // Porcentaje de alto
+            
+            divAgua.style.width = `${widthVisual}%`;
+            divAgua.style.height = `${heightVisual}%`;
+
+            document.getElementById('lbl-b').textContent = `b = ${bOptimo.toFixed(2)}m`;
+            document.getElementById('lbl-y').textContent = `y = ${yOptimo.toFixed(2)}m`;
+        }
+
+        // Event Listeners: Escuchamos los cambios en los sliders para recalcular en tiempo real
+        document.getElementById('slider-perimetro').addEventListener('input', actualizarSimulador);
+        document.getElementById('slider-longitud').addEventListener('input', actualizarSimulador);
+        document.getElementById('slider-pendiente').addEventListener('input', actualizarSimulador);
+
+        // Ejecutar por primera vez al cargar la página
+        actualizarSimulador();
+    </script>
+</body>
+</html>
